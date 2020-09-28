@@ -25,7 +25,7 @@ def train_net(net,
               device,
               epochs=5,
               batch_size=1,
-              lr=0.001,
+              lr=0.0001,
               val_percent=0.1,
               save_cp=True,
               img_scale=0.5):
@@ -34,8 +34,8 @@ def train_net(net,
     n_val = int(len(dataset) * val_percent)
     n_train = len(dataset) - n_val
     train, val = random_split(dataset, [n_train, n_val])
-    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
-    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True, drop_last=True)
+    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
+    val_loader = DataLoader(val, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True, drop_last=True)
 
     writer = SummaryWriter(comment=f'LR_{lr}_BS_{batch_size}_SCALE_{img_scale}')
     global_step = 0
@@ -57,6 +57,7 @@ def train_net(net,
         criterion = nn.CrossEntropyLoss()
     else:
         criterion = nn.BCEWithLogitsLoss()
+    best_loss = float('inf')
 
     for epoch in range(epochs):
         net.train()
@@ -66,6 +67,7 @@ def train_net(net,
             for batch in train_loader:
                 imgs = batch['image']
                 true_masks = batch['mask']
+                # print(imgs.shape())
                 assert imgs.shape[1] == net.n_channels, \
                     f'Network has been defined with {net.n_channels} input channels, ' \
                     f'but loaded images have {imgs.shape[1]} channels. Please check that ' \
@@ -76,6 +78,7 @@ def train_net(net,
                 true_masks = true_masks.to(device=device, dtype=mask_type)
 
                 masks_pred = net(imgs)
+                # loss = criterion(masks_pred, true_masks.squeeze(1))
                 loss = criterion(masks_pred, true_masks)
                 epoch_loss += loss.item()
                 writer.add_scalar('Loss/train', loss.item(), global_step)
@@ -116,9 +119,13 @@ def train_net(net,
                 logging.info('Created checkpoint directory')
             except OSError:
                 pass
-            torch.save(net.state_dict(),
-                       dir_checkpoint + f'CP_epoch{epoch + 1}.pth')
-            logging.info(f'Checkpoint {epoch + 1} saved !')
+            if epoch_loss < best_loss:
+                best_loss = epoch_loss
+                # torch.save(net.state_dict(),
+                #            dir_checkpoint + f'CP_epoch{epoch + 1}.pth')
+                torch.save(net.state_dict(),
+                           dir_checkpoint + f'CP_epoch_best.pth')
+                logging.info(f'Checkpoint {epoch + 1} saved ! Best model saved !')
 
     writer.close()
 
@@ -126,7 +133,7 @@ def train_net(net,
 def get_args():
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-e', '--epochs', metavar='E', type=int, default=5,
+    parser.add_argument('-e', '--epochs', metavar='E', type=int, default=50,
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=1,
                         help='Batch size', dest='batchsize')
@@ -143,6 +150,7 @@ def get_args():
 
 
 if __name__ == '__main__':
+    os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     args = get_args()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

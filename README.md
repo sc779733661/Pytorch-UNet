@@ -26,6 +26,10 @@ To predict a multiple images and show them without saving them:
 
 `python predict.py -i image1.jpg image2.jpg --viz --no-save`
 
+sc:
+
+`python predict.py -i ./data/test/410.jpg --model ./checkpoints/CP_epoch_best.pth`
+
 ```shell script
 > python predict.py -h
 usage: predict.py [-h] [--model FILE] --input INPUT [INPUT ...]

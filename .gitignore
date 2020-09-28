@@ -1,8 +1,12 @@
 *.pyc
 data/
+data_augment/
 __pycache__/
 checkpoints/
 *.pth
 *.jpg
 SUBMISSION*
 venv/
+data_*
+runS/
+.vscode/

@@ -24,7 +24,7 @@ class BasicDataset(Dataset):
         return len(self.ids)
 
     @classmethod
-    def preprocess(cls, pil_img, scale):
+    def preprocess(cls, pil_img, scale, is_mask):
         w, h = pil_img.size
         newW, newH = int(scale * w), int(scale * h)
         assert newW > 0 and newH > 0, 'Scale is too small'
@@ -37,8 +37,11 @@ class BasicDataset(Dataset):
 
         # HWC to CHW
         img_trans = img_nd.transpose((2, 0, 1))
-        if img_trans.max() > 1:
-            img_trans = img_trans / 255
+        # 整理标签
+        if is_mask and img_trans.max() > 1:
+            # img_trans = img_trans / 255
+            indax_l = np.where(img_trans == 2)
+            img_trans[indax_l] = 1
 
         return img_trans
 
@@ -56,9 +59,15 @@ class BasicDataset(Dataset):
 
         assert img.size == mask.size, \
             f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
+        
+        # img.resize((512, 512))
+        # mask.resize((512, 512))
 
-        img = self.preprocess(img, self.scale)
-        mask = self.preprocess(mask, self.scale)
+        img = self.preprocess(img, self.scale, 0)
+        mask = self.preprocess(mask, self.scale, 1)
+
+        # img = img.reshape(1, 1, img.shape[0], img.shape[1])
+        # mask = mask.reshape(1, 1, mask.shape[0], mask.shape[1])
 
         return {
             'image': torch.from_numpy(img).type(torch.FloatTensor),

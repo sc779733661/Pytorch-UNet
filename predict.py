@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import glob
 
 import numpy as np
 import torch
@@ -20,7 +21,7 @@ def predict_img(net,
                 out_threshold=0.5):
     net.eval()
 
-    img = torch.from_numpy(BasicDataset.preprocess(full_img, scale_factor))
+    img = torch.from_numpy(BasicDataset.preprocess(full_img, scale_factor, 0))
 
     img = img.unsqueeze(0)
     img = img.to(device=device, dtype=torch.float32)
@@ -63,9 +64,9 @@ def get_args():
     parser.add_argument('--viz', '-v', action='store_true',
                         help="Visualize the images as they are processed",
                         default=False)
-    parser.add_argument('--no-save', '-n', action='store_true',
-                        help="Do not save the output masks",
-                        default=False)
+    parser.add_argument('--save', '-n', action='store_true',
+                        help="save the output masks",
+                        default=True)
     parser.add_argument('--mask-threshold', '-t', type=float,
                         help="Minimum probability value to consider a mask pixel white",
                         default=0.5)
@@ -113,24 +114,47 @@ if __name__ == "__main__":
 
     logging.info("Model loaded !")
 
-    for i, fn in enumerate(in_files):
-        logging.info("\nPredicting image {} ...".format(fn))
+    # for i, fn in enumerate(in_files):
+    #     logging.info("\nPredicting image {} ...".format(fn))
 
-        img = Image.open(fn)
+    #     img = Image.open(fn)
 
+    #     mask = predict_img(net=net,
+    #                        full_img=img,
+    #                        scale_factor=args.scale,
+    #                        out_threshold=args.mask_threshold,
+    #                        device=device)
+
+    #     if args.save:
+    #         out_fn = out_files[i]
+    #         result = mask_to_image(mask)
+    #         result.save(out_files[i])
+
+    #         logging.info("Mask saved to {}".format(out_files[i]))
+
+    #     if args.viz:
+    #         logging.info("Visualizing results for image {}, close to continue ...".format(fn))
+    #         plot_img_and_mask(img, mask)
+    
+    # folder
+    tests_path = glob.glob('data/test/*.jpg')
+    for test_path in tests_path:
+        print(test_path)
+        logging.info("\nPredicting image {} ...".format(test_path))
+        img = Image.open(test_path)
         mask = predict_img(net=net,
                            full_img=img,
                            scale_factor=args.scale,
                            out_threshold=args.mask_threshold,
                            device=device)
 
-        if not args.no_save:
-            out_fn = out_files[i]
+        if args.save:
+            save_res_path = test_path.split('.')[0] + '_res.png'
             result = mask_to_image(mask)
-            result.save(out_files[i])
+            result.save(save_res_path)
 
-            logging.info("Mask saved to {}".format(out_files[i]))
+            logging.info("Mask saved to {}".format(save_res_path))
 
         if args.viz:
-            logging.info("Visualizing results for image {}, close to continue ...".format(fn))
+            logging.info("Visualizing results for image {}, close to continue ...".format(save_res_path))
             plot_img_and_mask(img, mask)
